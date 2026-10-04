@@ -15,10 +15,11 @@ old template scheduler with evidence from the chosen upstream runtime.
 
 - [x] (2026-10-04 04:10Z) Verify #39 is open, its dashboard proof passed, and #40 is now dependency-eligible.
 - [x] (2026-10-04 04:10Z) Create dedicated child Issue #42 with the useful installer change, exact offline acceptance command, and the sole `symphony:ready` eligibility label.
-- [ ] (2026-10-04 04:10Z) Start upstream Symphony, observe the child in the dashboard, and collect its isolated workspace result.
-- [ ] (2026-10-04 04:10Z) Verify the child diff and tests; record its review handoff without pushing, merging, or closing it.
-- [ ] (2026-10-04 04:10Z) Stop and restart the owned Symphony process, recording the upstream state and preserved workspace behaviour.
-- [ ] (2026-10-04 04:10Z) Record durable evidence in #40 and leave it open for human review.
+- [x] (2026-10-04 04:18Z) Start upstream Symphony, observe #42 in its dashboard, and collect its isolated workspace result.
+- [x] (2026-10-04 04:20Z) Verify the child diff and tests; preserve its review handoff without pushing, merging, or closing it.
+- [x] (2026-10-04 04:24Z) Remove #42's temporary `symphony:ready` label with explicit human approval; confirm no eligible Issue remains.
+- [x] (2026-10-04 04:30Z) After the owning session stopped the old process, start a fresh instance against the preserved workspace, observe its empty state, and stop the newly owned process.
+- [x] (2026-10-04 04:26Z) Record durable current evidence and the remaining restart limitation in #40; leave it open for human review.
 
 ## Surprises & Discoveries
 
@@ -26,6 +27,12 @@ old template scheduler with evidence from the chosen upstream runtime.
   Evidence: `GET /api/v1/state` during #39 returned zero for all counts; #39 evidence comment `5976416984`.
 - Observation: The first #42 attempt proved upstream dispatch and workspace creation, but Codex CLI `0.159.3` refused the configured `approval_policy.reject` variant before any agent turn.
   Evidence: the preserved upstream log reports `Invalid request: unknown variant reject, expected one of untrusted, on-request, granular, never`; the dashboard reported GH-42 retries and zero tokens.
+- Observation: The successful worker workspace intentionally has no ignored `var/tools/` binary, so its initial `--check` invocation correctly exercised the missing-executable failure path.
+  Evidence: `missing executable: .../workspaces-granular/GH-42/var/tools/symphony-v0.0.3-linux_x86_64`; after copying the already SHA-verified host binary as a local test fixture, the exact command returned `verified: v0.0.3 symphony-v0.0.3-linux_x86_64`.
+- Observation: The repository-enforced GitHub safety control rejected removal of the temporary `symphony:ready` label without a new explicit user authorization.
+  Evidence: 2026-10-04 `gh issue edit 42 --remove-label symphony:ready` was rejected before execution; the tool cited the repository workflow's label-mutation prohibition.
+- Observation: A foreground upstream BEAM process remained bound to port 8765 after bounded `SIGINT` and `SIGTERM` observations; it was not force-killed. The owning terminal subsequently stopped it, enabling the clean recovery observation.
+  Evidence: process `73973` continued listening on port 8765 during the first attempt; after the owner stopped it, fresh PID `92503` served `GET /api/v1/state` with empty state and closed its listener after `SIGTERM`.
 
 ## Decision Log
 
@@ -94,6 +101,26 @@ The first attempt used `var/symphony-upstream/workspaces/GH-42` and is preserved
 for diagnosis. The corrected retry will set `SYMPHONY_WORKSPACE_ROOT` to a new
 ignored workspace directory rather than removing or overwriting that evidence.
 
+The corrected run used
+`var/symphony-upstream/workspaces-granular/GH-42`. The upstream dashboard on
+port 8767 showed one and only one running task, `GH-42`, with an app-server PID,
+real session IDs, GitHub tool calls, a 48-line diff, and completed turns. The
+foreground service was stopped after the stable change, preserving both
+workspaces. The task's first completed turn used 383,294 tokens; because the
+GitHub Issue remained open, upstream began additional turns up to the configured
+`max_turns`, so the service was stopped rather than allowed to repeat work.
+
+The #42 eligibility label was removed with explicit human authorization before
+the restart exercise, so no work could be selected again. The owning terminal
+then stopped the pre-existing foreground listener on port 8765. A fresh process
+against the same preserved workspace returned an empty upstream dashboard state
+with no eligible Issue; it did not redispatch #42. The new process was stopped
+and its listener closed. This evidences upstream's persisted workspace and
+tracker-reconstructed state model without claiming exact session continuation.
+Deferred #43 captures a future supervised host-service option, outside this
+milestone, to provide explicit operator-owned status, restart, and logs without
+creating a replacement scheduler.
+
 ## Concrete Steps
 
 From `/home/chris/template`:
@@ -110,12 +137,12 @@ transcript will be recorded here during execution.
 
 | Capability | Real proof | Result |
 | --- | --- | --- |
-| One deliberate task selection | Exactly one open child carries `symphony:ready`; upstream dashboard identifies only that task | Pending |
-| GitHub Issue context reaches Codex | Child workspace contains a worker-authored implementation tied to the child scope | Pending |
-| Code and test result | Child diff plus `scripts/install_upstream_symphony.sh --check` output | Pending |
-| Review handoff | Child Issue comment records diff, command, and no-push/no-close state | Pending |
-| Restart behaviour | Stop/restart transcript and state/workspace comparison | Pending |
-| Scope audit | No unrelated issue session, label mutation, push, merge, deploy, or host restart | Pending |
+| One deliberate task selection | Exactly one open child carries `symphony:ready`; upstream dashboard identifies only that task | Passed: GH-42 only |
+| GitHub Issue context reaches Codex | Child workspace contains a worker-authored implementation tied to the child scope | Passed: 48-line installer diff |
+| Code and test result | Child diff plus `scripts/install_upstream_symphony.sh --check` output | Passed: syntax, diff check, missing-path refusal, and fixture-backed success |
+| Review handoff | Child Issue comment records diff, command, and no-push/no-close state | Passed; worker comments retained |
+| Restart behaviour | Stop/restart transcript and state/workspace comparison | Passed: old process stopped by its owner; fresh process yielded empty state, preserved workspace, no redispatch, then clean listener closure |
+| Scope audit | No unrelated issue session, label mutation, push, merge, deploy, or host restart | Passed: #42 eligibility removed with explicit user approval; no other scope expansion |
 
 ## Idempotence and Recovery
 

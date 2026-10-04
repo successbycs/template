@@ -21,6 +21,10 @@ Run one controlled, temporary host experiment: disable WSLg through the document
 - [ ] Session A: create bounded restoration helper and transition #32 to blocked before shutdown.
 - [x] (2026-10-02 00:16Z) The Session B helper timed out without a new session; it removed the temporary configuration and restarted WSL. The after-test remains unobserved.
 - [x] (2026-10-02 00:48Z) Corrected the stale decisive-probe decision and acceptance matrix to match observed normal-editor failure. Linked detailed diagnostics; no third restart was attempted.
+- [x] (2026-10-04 01:17Z) User explicitly approved a third, reversible WSLg-disable fallback experiment after the downgraded active runtime reproduced the mount warning. The preflight again exited 2; `%USERPROFILE%\\.wslconfig` was absent.
+- [x] (2026-10-04 01:20Z) Created only `%USERPROFILE%\\.wslconfig` with `[wsl2] guiApplications=false` and an adjacent marker that records the prior file was absent. The human performed the required WSL shutdown and reopened the workspace.
+- [x] (2026-10-04 01:23Z) After restart, the live preflight reported `compatible`. A normal, non-escalated terminal check and a disposable normal `apply_patch` create/delete cycle passed; the probe file was absent afterward. The only working-tree entry was pre-existing, unrelated `?? .playwright-cli/`.
+- [ ] (requires explicit human retention decision) Either retain this host-wide WSLg-disable setting for the workaround or restore the originally absent `.wslconfig`, restart WSL, and capture the restored preflight.
 - [ ] Human recovery: reopen Ubuntu and start a new Codex session during a newly approved bounded test window.
 - [ ] Session B: re-read and claim #32, run the normal-editor after-test, signal restoration, and verify restored state.
 - [ ] Record result, verify repository, commit, and hand off for review.
